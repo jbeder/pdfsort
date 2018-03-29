@@ -7,20 +7,48 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
+	"github.com/unidoc/unidoc/common/license"
 	pdf "github.com/unidoc/unidoc/pdf/model"
 )
 
-func main() {
-	if len(os.Args) != 3 {
-		log.Fatal("Usage: pdfsort <input> <output>")
+var licenseKey = flag.String("license_key", "", "file containing unidoc license key")
+
+func init() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: pdfsort <input> <output>\n")
+		flag.PrintDefaults()
 	}
-	if err := pdfsort(os.Args[1], os.Args[2]); err != nil {
+}
+
+func main() {
+	flag.Parse()
+	if len(flag.Args()) != 2 {
+		flag.Usage()
+		os.Exit(1)
+	}
+	if licenseKey != nil && *licenseKey != "" {
+		if err := loadLicense(*licenseKey); err != nil {
+			log.Fatalf("pdfsort: error loading license: %v\n", err)
+		}
+	}
+
+	if err := pdfsort(flag.Arg(0), flag.Arg(1)); err != nil {
 		log.Fatalf("pdfsort: %v", err)
 	}
+}
+
+func loadLicense(filename string) error {
+	key, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	return license.SetLicenseKey(string(key))
 }
 
 func pages(n int) []int {
